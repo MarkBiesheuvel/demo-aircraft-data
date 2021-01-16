@@ -7,41 +7,36 @@ from json import dumps as json_encode
 TCP_IP = 'localhost'
 TCP_PORT = 30003
 BUFFER_SIZE = 102400
+
+# Text settings
 CHARACTER_ENCODING = 'utf-8'
 LINE_DELIMETER = '\r\n'
 COLUMN_DELIMETER = ','
+SPACE_CHARACTER = ' '
+EMPTY_STRING = ''
+
+# Settings of ADS-B messages
+MESSAGE_STRUCTURE = {
+    'IcaoAddress': 4,
+    'FlightCode': 10,
+    'FlightLevel': 11,
+    'AirSpeed': 12,
+    'Heading': 13,
+    'Latitude': 14,
+    'Longitude': 15,
+    'Squawk': 16,
+}
 
 
 # Transform an comma-delimted ADS-B message to a JSON object
 def transform(line):
     columns = line.split(COLUMN_DELIMETER)
 
-    record = {
-        'IcaoAddress': columns[4]
+    return {
+        key: columns[index].strip(SPACE_CHARACTER)
+        for key, index in MESSAGE_STRUCTURE.items()
+        if index < len(columns) and columns[index] != EMPTY_STRING
     }
-
-    if columns[10] != '':
-        record['FlightCode'] = columns[10].strip()
-
-    if columns[11] != '':
-        record['FlightLevel'] = columns[11].strip()
-
-    if columns[12] != '':
-        record['AirSpeed'] = columns[12]
-
-    if columns[13] != '':
-        record['Heading'] = columns[13]
-
-    if columns[14] != '':
-        record['Latitude'] = columns[14]
-
-    if columns[15] != '':
-        record['Longitude'] = columns[15]
-
-    if columns[16] != '':
-        record['Squawk'] = columns[16]
-
-    return record
 
 
 # Connection to the socket
@@ -67,5 +62,7 @@ while True:
     ]
 
     for record in records:
+
+        # All message have at least one attribute (ICAO address), only send message that contain more info
         if len(record.keys()) > 1:
             print(record)
