@@ -2,11 +2,16 @@
 from socket import socket
 from sys import exit
 from json import dumps as json_encode
+from boto3 import resource
+from os import environ
 
 # Settings of dump1090
 TCP_IP = 'localhost'
 TCP_PORT = 30003
 BUFFER_SIZE = 102400
+
+# Settings of SQS
+QUEUE_URL = environ['QUEUE_URL']
 
 # Text settings
 CHARACTER_ENCODING = 'utf-8'
@@ -48,6 +53,9 @@ except:
     print('Failed to connect to dump1090')
     exit()
 
+# SQS client
+queue = resource('sqs').Queue(QUEUE_URL)
+
 # Continous loop
 while True:
     # Receive raw bytes
@@ -56,13 +64,21 @@ while True:
     # Convert, strip and split the buffer
     lines = buffer.decode(CHARACTER_ENCODING).strip(LINE_DELIMETER).split(LINE_DELIMETER)
 
+    # Transform comma seperated lines into list of JSON objects
     records = [
         transform(line)
         for line in lines
     ]
 
-    for record in records:
+    # Filter out message without any additional information (other than ICAO address)
+    records = [
+        record
+        for record in records
+        if len(record.keys()) > 1
+    ]
 
-        # All message have at least one attribute (ICAO address), only send message that contain more info
-        if len(record.keys()) > 1:
-            print(record)
+    # TODO: switch to batch sending
+    for record in records:
+        queue.send_message(
+            MessageBody=json_encode(record)
+        )

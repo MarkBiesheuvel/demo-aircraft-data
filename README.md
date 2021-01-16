@@ -56,9 +56,28 @@ Download the sync python script.
 
 ```sh
 wget -q -O ~/dump1090-to-sqs.py https://raw.githubusercontent.com/MarkBiesheuvel/demo-aircraft-data/master/scripts/dump1090-to-sqs.py
+python3 -m pip install boto3
 ```
 
-### 1.5 Run the programs
+
+## 2 Deploying the AWS infrastructure
+
+To deploy the AWS infrastructure we will use the AWS Cloud Development Kit (CDK).
+
+```sh
+sudo npm install -g aws-cdk --update
+python3 -m pip install -r cdk/requirements.txt
+cdk deploy
+```
+
+Next, configure the queue url, region, and access key and secret in on the Raspberry Pi.
+
+```sh
+export QUEUE_URL=
+aws configure
+```
+
+## 3 Run the programs
 
 Lastly we will start our programs. Both programs will be send to the background.
 
