@@ -23,6 +23,8 @@ EMPTY_STRING = ''
 # Settings of ADS-B messages
 MESSAGE_STRUCTURE = {
     'IcaoAddress': 4,
+    'Date': 8,
+    'Time': 9,
     'FlightCode': 10,
     'FlightLevel': 11,
     'AirSpeed': 12,
@@ -43,6 +45,12 @@ def transform(line):
         if index < len(columns) and columns[index] != EMPTY_STRING
     }
 
+# Determine if required attributes are present and at least one optional attribute
+def is_valid(record):
+    return 'IcaoAddress' in record and \
+        'Date' in record and \
+        'Time' in record and \
+        len(record.keys()) > 3
 
 # Connection to the socket
 dump1090 = socket()
@@ -74,7 +82,7 @@ while True:
     records = [
         record
         for record in records
-        if len(record.keys()) > 1
+        if is_valid(record)
     ]
 
     # TODO: switch to batch sending

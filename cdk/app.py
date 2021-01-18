@@ -70,12 +70,10 @@ class DemoStack(core.Stack):
             timeout=message_timeout,
             handler='index.handler',
             role=lambda_role,
+            events=[event],
             environment={
                 'TABLE_NAME': table.table_name,
             },
-            events=[
-                event,
-            ],
         )
 
         # Outputs that are needed on the Raspberry Pi
