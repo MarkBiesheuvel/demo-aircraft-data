@@ -1,0 +1,13 @@
+---
+import:
+  - https://www.nextzen.org/carto/cinnabar-style/9/cinnabar-style.zip
+  - https://www.nextzen.org/carto/cinnabar-style/themes/label-2.zip
+
+sources:
+  mapzen:
+    url: https://amazon.location/tangram-test/{z}/{x}/{y}
+
+layers:
+  roads:
+    data: { source: mapzen }
+    enabled: false
