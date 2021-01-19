@@ -1,11 +1,15 @@
 #!/usr/bin/env python3
 from aws_cdk import (
     core,
+    aws_apigateway as apigateway,
+    aws_cloudfront as cloudfront,
     aws_dynamodb as dynamodb,
     aws_iam as iam,
     aws_lambda as lambda_,
     aws_lambda_event_sources as lambda_event_sources,
     aws_sqs as sqs,
+    aws_s3 as s3,
+    aws_s3_deployment as s3_deployment,
 )
 
 
@@ -78,6 +82,43 @@ class DemoStack(core.Stack):
 
         # TODO: add custom log group
         # TODO: add metric filters for number of succesfull updates and failed updates
+
+        # Static website
+        bucket = s3.Bucket(self, 'StaticWebsite')
+
+        s3_deployment.BucketDeployment(
+            self, 'Deployment',
+            sources=[
+                s3_deployment.Source.asset('html/'),
+            ],
+            destination_bucket=bucket,
+        )
+
+        origin_identity = cloudfront.OriginAccessIdentity(self, 'Identity')
+        bucket.grant_read(origin_identity.grant_principal)
+
+        s3_origin = cloudfront.SourceConfiguration(
+            s3_origin_source=cloudfront.S3OriginConfig(
+                s3_bucket_source=bucket,
+                origin_access_identity=origin_identity,
+            ),
+            behaviors=[
+                cloudfront.Behavior(
+                    default_ttl=core.Duration.days(0),
+                    min_ttl=core.Duration.days(0),
+                    max_ttl=core.Duration.days(31),
+                    is_default_behavior=True,
+                )
+            ]
+        )
+
+        cloudfront.CloudFrontWebDistribution(
+            self, 'CDN',
+            price_class=cloudfront.PriceClass.PRICE_CLASS_ALL,
+            origin_configs=[
+                s3_origin,
+            ],
+        )
 
         # Outputs that are needed on the Raspberry Pi
         core.CfnOutput(
