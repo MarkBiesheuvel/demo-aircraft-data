@@ -76,6 +76,9 @@ class DemoStack(core.Stack):
             },
         )
 
+        # TODO: add custom log group
+        # TODO: add metric filters for number of succesfull updates and failed updates
+
         # Outputs that are needed on the Raspberry Pi
         core.CfnOutput(
             self, 'QueueUrl',
