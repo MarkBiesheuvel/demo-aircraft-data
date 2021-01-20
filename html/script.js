@@ -52,30 +52,44 @@
     await registerServiceWorker();
 
     // actually initialize the map
-    const map = L.map("map").setView([52.2, 5.1], 9);
+    map = L.map("map").setView([52.2, 5.1], 9);
 
     Tangram.leafletLayer({
-      scene: 'scene.yaml'
+      scene: "scene.yaml"
     }).addTo(map);
-
-    const markers = [
-      L.marker([52.2, 5.1]).addTo(map),
-      L.marker([52.4, 5.1]).addTo(map),
-      L.marker([52.4, 5.3]).addTo(map),
-      L.marker([52.2, 5.3]).addTo(map),
-    ]
-
-    setInterval(function() {
-      markers.forEach(function(marker) {
-        let latlong = marker.getLatLng();
-        latlong['lat'] += Math.random() * 0.1 - 0.05;
-        latlong['lng'] += Math.random() * 0.1 - 0.05;
-        marker.setLatLng(latlong);
-      })
-    }, 1000)
-
     map.attributionControl.setPrefix("");
+
+    loadMarkers()
+    setInterval(loadMarkers, 1000)
   }
 
+  function loadMarkers() {
+    $.ajax({
+      dataType: "json",
+      url: "aircraft/",
+      success: function(aircrafts) {
+        aircrafts.forEach(function(aircraft) {
+          icaoAddress = aircraft["IcaoAddress"]
+          latLng = [
+            aircraft["Latitude"],
+            aircraft["Longitude"]
+          ]
+
+          if (!(icaoAddress in markers)) {
+            markers[icaoAddress] = L.marker(latLng).addTo(map);
+
+            if ("FlightCode" in aircraft) {
+              markers[icaoAddress].bindPopup(aircraft["FlightCode"])
+            }
+          } else {
+            markers[icaoAddress].setLatLng(latLng);
+          }
+        });
+      }
+    });
+  }
+
+  let map;
+  let markers = {};
   initializeMap();
 }())

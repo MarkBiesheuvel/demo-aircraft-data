@@ -19,7 +19,7 @@ def handler(event, context):
     time_threshold = datetime.now() - timedelta(minutes=5)
 
     response = table.scan(
-        ProjectionExpression='FlightCode, FlightLevel, AirSpeed, Heading, Latitude, Longitude, Squawk',
+        ProjectionExpression='IcaoAddress, FlightCode, FlightLevel, Heading, Latitude, Longitude',
         FilterExpression=Attr('LastUpdated').gte(time_threshold.strftime(TIME_FORMAT)) &
             Attr('Latitude').exists() & Attr('Longitude').exists()
     )
