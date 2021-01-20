@@ -57,7 +57,7 @@ class DemoStack(core.Stack):
                 iam.ManagedPolicy.from_aws_managed_policy_name('service-role/AWSLambdaBasicExecutionRole'),
             ],
         )
-        table.grant_write_data(lambda_role)
+        table.grant_read_write_data(lambda_role)
 
         # Integration between SQS and Lambda
         event = lambda_event_sources.SqsEventSource(
@@ -66,11 +66,11 @@ class DemoStack(core.Stack):
         )
 
         # Lambda function that processes messages from SQS queue and updates DynamoDB table
-        function = lambda_.Function(
-            self, 'Function',
+        import_function = lambda_.Function(
+            self, 'ImportFunction',
             description='Reads SQS messages and writes to DynamoDB',
             runtime=lambda_.Runtime.PYTHON_3_8,
-            code=lambda_.Code.from_asset('lambda/'),
+            code=lambda_.Code.from_asset('lambda_import/'),
             timeout=message_timeout,
             handler='index.handler',
             role=lambda_role,
@@ -83,6 +83,39 @@ class DemoStack(core.Stack):
         # TODO: add custom log group
         # TODO: add metric filters for number of succesfull updates and failed updates
 
+        # Lambda function that reads from DynamoDB and returns data to API Gateway
+        api_function = lambda_.Function(
+            self, 'ApiFunction',
+            description='Reads from DynamoDB and returns to API GW',
+            runtime=lambda_.Runtime.PYTHON_3_8,
+            code=lambda_.Code.from_asset('lambda_api/'),
+            timeout=message_timeout,
+            handler='index.handler',
+            role=lambda_role,
+            environment={
+                'TABLE_NAME': table.table_name,
+            },
+        )
+
+        # API Gateway for requesting aircraft data
+        api = apigateway.RestApi(
+            self, 'Api',
+            endpoint_types=[
+                apigateway.EndpointType.REGIONAL
+            ],
+            cloud_watch_role=False,
+        )
+
+        aircraft_resource = api.root.add_resource('aircraft')
+
+        aircraft_resource.add_method(
+            http_method='GET',
+            integration=apigateway.LambdaIntegration(
+                api_function,
+                proxy=True,
+            ),
+        )
+
         # Static website
         bucket = s3.Bucket(self, 'StaticWebsite')
 
@@ -94,9 +127,12 @@ class DemoStack(core.Stack):
             destination_bucket=bucket,
         )
 
+        # Permissions between CloudFront and S3
         origin_identity = cloudfront.OriginAccessIdentity(self, 'Identity')
         bucket.grant_read(origin_identity.grant_principal)
 
+
+        # CloudFront distribution pointing to both S3 and API Gateway
         s3_origin = cloudfront.SourceConfiguration(
             s3_origin_source=cloudfront.S3OriginConfig(
                 s3_bucket_source=bucket,
@@ -112,11 +148,31 @@ class DemoStack(core.Stack):
             ]
         )
 
+        api_origin = cloudfront.SourceConfiguration(
+            origin_path='/{}'.format(api.deployment_stage.stage_name),
+            custom_origin_source=cloudfront.CustomOriginConfig(
+                domain_name='{}.execute-api.{}.{}'.format(
+                    api.rest_api_id,
+                    self.region,
+                    self.url_suffix
+                ),
+            ),
+            behaviors=[
+                cloudfront.Behavior(
+                    default_ttl=core.Duration.seconds(0),
+                    min_ttl=core.Duration.seconds(0),
+                    max_ttl=core.Duration.seconds(0),
+                    path_pattern='/aircraft/*',
+                )
+            ]
+        )
+
         cloudfront.CloudFrontWebDistribution(
             self, 'CDN',
             price_class=cloudfront.PriceClass.PRICE_CLASS_ALL,
             origin_configs=[
                 s3_origin,
+                api_origin,
             ],
         )
 
