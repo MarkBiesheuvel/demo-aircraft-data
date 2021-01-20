@@ -58,10 +58,21 @@
       scene: 'scene.yaml'
     }).addTo(map);
 
-    L.marker([52.2, 5.1]).addTo(map);
-    L.marker([52.4, 5.1]).addTo(map);
-    L.marker([52.4, 5.3]).addTo(map);
-    L.marker([52.2, 5.3]).addTo(map);
+    const markers = [
+      L.marker([52.2, 5.1]).addTo(map),
+      L.marker([52.4, 5.1]).addTo(map),
+      L.marker([52.4, 5.3]).addTo(map),
+      L.marker([52.2, 5.3]).addTo(map),
+    ]
+
+    setInterval(function() {
+      markers.forEach(function(marker) {
+        let latlong = marker.getLatLng();
+        latlong['lat'] += Math.random() * 0.1 - 0.05;
+        latlong['lng'] += Math.random() * 0.1 - 0.05;
+        marker.setLatLng(latlong);
+      })
+    }, 1000)
 
     map.attributionControl.setPrefix("");
   }

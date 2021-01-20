@@ -1,13 +1,31 @@
 ---
+
 import:
+  # Use the Cinnabar style https://github.com/tangrams/cinnabar-style
   - https://www.nextzen.org/carto/cinnabar-style/9/cinnabar-style.zip
   - https://www.nextzen.org/carto/cinnabar-style/themes/label-2.zip
 
 sources:
+
+  # Use map data from Amazon Location Service
   mapzen:
     url: https://amazon.location/tangram-test/{z}/{x}/{y}
 
 layers:
+
+  # Disable all roads
   roads:
     data: { source: mapzen }
     enabled: false
+
+  # Only draw country borders
+  boundaries:
+    data: { source: mapzen }
+    draw:
+      lines:
+        visible: false
+    country:
+      filter: { kind: country }
+      draw:
+        lines:
+          visible: true
