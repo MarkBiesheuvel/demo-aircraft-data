@@ -3,6 +3,7 @@
 get_output() {
   aws cloudformation describe-stacks \
     --stack-name "AircraftData" \
+    --region "eu-west-1" \
     --query "Stacks[0].Outputs[?OutputKey=='$1'].OutputValue" \
     --output text
 }

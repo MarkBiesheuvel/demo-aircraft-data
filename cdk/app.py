@@ -131,7 +131,6 @@ class DemoStack(core.Stack):
         origin_identity = cloudfront.OriginAccessIdentity(self, 'Identity')
         bucket.grant_read(origin_identity.grant_principal)
 
-
         # CloudFront distribution pointing to both S3 and API Gateway
         s3_origin = cloudfront.SourceConfiguration(
             s3_origin_source=cloudfront.S3OriginConfig(
@@ -196,5 +195,10 @@ class DemoStack(core.Stack):
 
 
 app = core.App()
-stack = DemoStack(app, 'AircraftData')
+stack = DemoStack(
+    app, 'AircraftData',
+    env=core.Environment(
+        region='eu-west-1',
+    )
+)
 app.synth()

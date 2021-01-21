@@ -69,9 +69,12 @@ To deploy the AWS infrastructure we will use the AWS Cloud Development Kit (CDK)
 
 In order to run this command, our computer should be configured with an IAM user with AdministratorAccess.
 
+Note replace with your own account id.
+
 ```sh
 sudo npm install -g aws-cdk --update
 python3 -m pip install -r cdk/requirements.txt
+cdk bootstrap aws://418155680583/eu-west-1
 cdk deploy
 ```
 
@@ -87,10 +90,10 @@ sh scripts/configure.sh
 The output of this command needs to be copied, pasted and ran on the Raspberry Pi. The output should look something like this:
 
 ```sh
-export QUEUE_URL='https://sqs.eu-central-1.amazonaws.com/.../...'
+export QUEUE_URL='https://sqs.eu-west-1.amazonaws.com/.../...'
 aws configure set aws_access_key_id 'AKIA...'
 aws configure set aws_secret_access_key '...'
-aws configure set region 'eu-central-1'
+aws configure set region 'eu-west-1'
 ```
 
 ### 2.3 Manual resources
