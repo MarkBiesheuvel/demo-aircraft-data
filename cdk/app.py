@@ -10,6 +10,7 @@ from aws_cdk import (
     aws_sqs as sqs,
     aws_s3 as s3,
     aws_s3_deployment as s3_deployment,
+    aws_timestream as timestream,
 )
 
 
@@ -26,7 +27,7 @@ class DemoStack(core.Stack):
             self, 'Queue',
             visibility_timeout=message_timeout,
             receive_message_wait_time=core.Duration.seconds(20),
-            retention_period=core.Duration.days(14), # TODO: decrease retention after done development
+            retention_period=core.Duration.hours(1),
         )
 
         # DynamoDB table that the web app will read from
@@ -39,6 +40,20 @@ class DemoStack(core.Stack):
             partition_key=icao_address,
             billing_mode=dynamodb.BillingMode.PAY_PER_REQUEST,
             removal_policy=core.RemovalPolicy.DESTROY,
+        )
+
+        database = timestream.CfnDatabase(
+            self, 'Database',
+            database_name='aircraft-database',
+        )
+        table2 = timestream.CfnTable(
+            self, 'Table2',
+            database_name=database.ref,
+            table_name='aircraft-table',
+            retention_properties={
+                'MemoryStoreRetentionPeriodInHours': 1,
+                'MagneticStoreRetentionPeriodInDays': 1,
+            }
         )
 
         # IAM user for the Raspberry Pi
@@ -56,6 +71,19 @@ class DemoStack(core.Stack):
             managed_policies=[
                 iam.ManagedPolicy.from_aws_managed_policy_name('service-role/AWSLambdaBasicExecutionRole'),
             ],
+        )
+        lambda_role.add_to_policy(
+            iam.PolicyStatement(
+                actions=[
+                    'timestream:CancelQuery',
+                    'timestream:DescribeEndpoints',
+                    'timestream:DescribeTable',
+                    'timestream:ListMeasures',
+                    'timestream:Select',
+                    'timestream:WriteRecords'
+                ],
+                resources=['*'], # TODO: narrow down permissions
+            )
         )
         table.grant_read_write_data(lambda_role)
 
@@ -76,7 +104,7 @@ class DemoStack(core.Stack):
             role=lambda_role,
             events=[event],
             environment={
-                'TABLE_NAME': table.table_name,
+                'TABLE_NAME': table2.ref,
             },
         )
 

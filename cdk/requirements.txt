@@ -5,4 +5,5 @@ aws-cdk.aws-lambda-event-sources==1.85.0
 aws-cdk.aws-s3==1.85.0
 aws-cdk.aws-s3-deployment==1.85.0
 aws-cdk.aws-sqs==1.85.0
+aws-cdk.aws-timestream==1.85.0
 aws-cdk.core==1.85.0

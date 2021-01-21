@@ -29,13 +29,10 @@ MESSAGE_STRUCTURE = {
     'IcaoAddress': 4,
     'Date': 8,
     'Time': 9,
-    'FlightCode': 10,
     'FlightLevel': 11,
-    'AirSpeed': 12,
     'Heading': 13,
     'Latitude': 14,
     'Longitude': 15,
-    'Squawk': 16,
 }
 
 
