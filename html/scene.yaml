@@ -9,7 +9,7 @@ sources:
 
   # Use map data from Amazon Location Service
   mapzen:
-    url: https://amazon.location/tangram-test/{z}/{x}/{y}
+    url: https://amazon.location/aircraft-data/{z}/{x}/{y}
 
 layers:
 
