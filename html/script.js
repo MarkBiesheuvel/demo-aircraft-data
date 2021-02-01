@@ -78,9 +78,8 @@
           if (!(icaoAddress in markers)) {
             markers[icaoAddress] = L.marker(latLng).addTo(map);
 
-            if ("FlightCode" in aircraft) {
-              markers[icaoAddress].bindPopup(aircraft["FlightCode"])
-            }
+            // Add FlightCode later
+            markers[icaoAddress].bindPopup(icaoAddress)
           } else {
             markers[icaoAddress].setLatLng(latLng);
           }
