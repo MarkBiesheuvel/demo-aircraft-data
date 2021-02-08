@@ -77,16 +77,20 @@
             aircraft["Longitude"]
           ]
 
+          // Substract 45 as the Twemoji as a default heading o 45 degree
+          angle = parseInt(aircraft["Heading"])  - 45
+
           currentAircrafts.push(icaoAddress)
 
           // Either create a new marker or update the existing one
           if (!(icaoAddress in markers)) {
-            markers[icaoAddress] = L.marker(latLng).addTo(map);
+            markers[icaoAddress] = L.marker(latLng, {icon: icon, rotationAngle: angle}).addTo(map);
 
             // Add FlightCode later
             markers[icaoAddress].bindPopup(icaoAddress)
           } else {
             markers[icaoAddress].setLatLng(latLng);
+            markers[icaoAddress].setRotationAngle(angle);
           }
         });
 
@@ -101,7 +105,14 @@
     });
   }
 
+  const icon = L.icon({
+      iconUrl: 'twemoji/2708.svg',
+      iconSize: [40, 40],
+      iconAnchor: [20, 20],
+      popupAnchor: [0, -20]
+  });
+
   let map;
-  let markers = {};
+  const markers = {};
   initializeMap();
 }())

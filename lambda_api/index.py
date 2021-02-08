@@ -15,6 +15,12 @@ WITH latest_longitude AS (
     WHERE measure_name = 'Latitude' AND time >= ago(1m)
     GROUP BY IcaoAddress
   ),
+  latest_heading AS (
+    SELECT IcaoAddress, max(time) as max_time
+    FROM "aircraft-database"."aircraft-table"
+    WHERE measure_name = 'Heading' AND time >= ago(1m)
+    GROUP BY IcaoAddress
+  ),
   longitude_view AS (
     SELECT a.IcaoAddress, a.measure_value::double
     FROM "aircraft-database"."aircraft-table" AS a
@@ -26,12 +32,20 @@ WITH latest_longitude AS (
     FROM "aircraft-database"."aircraft-table" AS a
     INNER JOIN latest_latitude AS l ON l.max_time = a.time
     WHERE a.measure_name = 'Latitude' AND time >= ago(1m)
+  ),
+  heading_view AS (
+    SELECT a.IcaoAddress, a.measure_value::bigint
+    FROM "aircraft-database"."aircraft-table" AS a
+    INNER JOIN latest_heading AS l ON l.max_time = a.time
+    WHERE a.measure_name = 'Heading' AND time >= ago(1m)
   )
 SELECT longitude_view.IcaoAddress,
   longitude_view.measure_value::double AS Longitude,
-  latitude_view.measure_value::double AS Latitude
+  latitude_view.measure_value::double AS Latitude,
+  heading_view.measure_value::bigint AS Heading
 FROM longitude_view
 INNER JOIN latitude_view ON longitude_view.IcaoAddress = latitude_view.IcaoAddress
+INNER JOIN heading_view ON longitude_view.IcaoAddress = heading_view.IcaoAddress
 '''
 
 timestream = client('timestream-query', region_name='eu-west-1')
@@ -42,6 +56,7 @@ def process_row(row):
         'IcaoAddress': row[0]['ScalarValue'],
         'Longitude': row[1]['ScalarValue'],
         'Latitude': row[2]['ScalarValue'],
+        'Heading': row[3]['ScalarValue'],
     }
 
 
