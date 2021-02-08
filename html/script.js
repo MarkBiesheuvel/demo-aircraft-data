@@ -66,8 +66,10 @@
   function loadMarkers() {
     $.ajax({
       dataType: "json",
-      url: "aircraft/",
+      url: "https://d2590et6sh3gqo.cloudfront.net/aircraft/",
       success: function(aircrafts) {
+        const currentAircrafts = []
+
         aircrafts.forEach(function(aircraft) {
           icaoAddress = aircraft["IcaoAddress"]
           latLng = [
@@ -75,6 +77,9 @@
             aircraft["Longitude"]
           ]
 
+          currentAircrafts.push(icaoAddress)
+
+          // Either create a new marker or update the existing one
           if (!(icaoAddress in markers)) {
             markers[icaoAddress] = L.marker(latLng).addTo(map);
 
@@ -84,6 +89,14 @@
             markers[icaoAddress].setLatLng(latLng);
           }
         });
+
+        // Remove any markers with address that are not in the current response
+        for (icaoAddress in markers) {
+          if (!currentAircrafts.includes(icaoAddress)) {
+            map.removeLayer(markers[icaoAddress])
+            delete markers[icaoAddress]
+          }
+        }
       }
     });
   }
