@@ -102,7 +102,7 @@ aws configure set region 'eu-west-1'
 
 ### 2.3 Manual resources
 
-Currently (January 2021) the demo relies on two manually created resources. Since Amazon Location Service is in Preview and does not have CloudFormation support yet, I (Mark Biesheuvel) have created a Location Service Map `arn:aws:geo:eu-west-1:418155680583:map/aircraft-data` as well as a Cognito Identity Pool `arn:aws:cognito-identity:eu-west-1:418155680583:identitypool/eu-west-1:d052d9d8-8b6d-4154-aef4-968d084f2fc0` in my own account.
+Currently (February 2021) the demo relies on two manually created resources. Since Amazon Location Service is in Preview and does not have CloudFormation support yet, I (Mark Biesheuvel) have created a Location Service Map `arn:aws:geo:eu-west-1:418155680583:map/aircraft-data` as well as a Cognito Identity Pool `arn:aws:cognito-identity:eu-west-1:418155680583:identitypool/eu-west-1:d052d9d8-8b6d-4154-aef4-968d084f2fc0` in my own account.
 
 In the future, I plan to include those resources inside the CDK script.
 
@@ -117,6 +117,8 @@ python3 ~/dump1090-to-sqs.py &
 
 Our serverless AWS architecture is always online and doesn't have to be started. Simply go to the CloudFront url to visit the website.
 
+Currently there is a live demo available on [aircraft.demo.training](https://aircraft.demo.training/).
+
 # 4 Design considerations
 
 ## 4.1 Ingestion
@@ -129,7 +131,7 @@ Our Raspberry Pi could directly insert data into our data source. However, if th
 
 ### 4.1.2 Amazon Kinesis Data Streams
 
-Data Streams was used by the demo of Wouter Liefting (see intro). However, this service is billed by the (shard) hour. This would mean that we incur cost even if our Raspberry Pi is turned off and not sending data to be ingested. Therefore, we looked for a serverless service instead.
+Data Streams is able to process messages. However, this service is billed by the (shard) hour. This would mean that we incur cost even if our Raspberry Pi is turned off and not sending data to be ingested. Therefore, we looked for a serverless service instead.
 
 ### 4.1.3 Amazon Kinesis Data Firehose
 
@@ -137,16 +139,31 @@ Firehose is serverless and therfore billed per GB processed. However, Firehose w
 
 ### 4.1.4 Amazon SQS
 
-SQS ticks all the boxes: serverless and fast. The only trade-off is that messages are not guaranteed to be delivered in order. This is fine as long as our message processing is idempotent. Luckily the ADS-B messages contain a timestamp. We can use the [ConditionExpression](https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_UpdateItem.html#DDB-UpdateItem-request-ConditionExpression) of DynamoDB UpdateItem to ensure we only update an item if the timestamp is newer than the last update.
+SQS ticks all the boxes: serverless and fast. The only trade-off is that messages are not guaranteed to be delivered in order. This is fine as long as our message processing is idempotent. Luckily the ADS-B messages contain a timestamp, which can be used to deduplicate, reorder or drop messages that are received out of order.
+
+Therefore, this demo uses Amazon SQS for ingestion.
 
 ## 4.2 Data store
 
-Currently we use DynamoDB as our datastore, however we could look into switching to Amazon Aurora Serverless,
-Amazon DocumentDB, Amazon Timestream or Amazon Location Service Trackers.
+Aircraft data needs to be persisted, since messages will not contain all attributes at once. One message might contain the latitude and longitude, while another contains the heading. Messages can be aggregated based on ICAO address, which is a unique identifier for each aircraft. Data is only relevant for a few minutes, after which it can be deleted.
 
-This is something we would like to revisit in the future.
+### 4.2.1 Amazon Aurora Serverless
 
-## 4.3 Static website
+Aurora Serverless does support the type of queries required for this application. However, it would require a custom solution to deleted outdated records.
+
+### 4.2.2 Amazon DynamoDB
+
+DynamoDB allows for easy updating on ICAO address as partition key and for automatic expiration with the TTL. However, when querying data, we would need to do a full table scan, and expiration isn't guaranteed within 48 hours.
+
+When inserting messages that are out of order, we could use the [ConditionExpression](https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_UpdateItem.html#DDB-UpdateItem-request-ConditionExpression) of DynamoDB UpdateItem to ensure we only update an item if the timestamp is newer than the last update.
+
+### 4.2.3 Amazon Timestream
+
+Timestream allows us to insert and query based on time, which is a extremely relevant metric for a real-time application. For example, to query the last known data of each aircraft or the history of a specific aircraft. It is also serverless and billed by GB processed.
+
+Therefore, this demo uses Amazon Timestream as data store.
+
+## 4.3 Static website hosting
 
 Our demo uses a static website with some HTML, JavaScript and YAML files. There are a few approaches to host this website.
 
@@ -156,6 +173,8 @@ A common approach is to make the Amazon S3 bucket public. However, this is disco
 ### 4.3.2 Amazon CloudFront
 
 With the combination of a [Amazon CloudFront](https://aws.amazon.com/cloudfront/) dstribution, CloudFront [origin access identity](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/private-content-restricting-access-to-s3.html) and an S3 bucket policy, it is possible to serve a private S3 bucket to the public. An added benefit is that CloudFront can also serve requests to our API gatewat under the same domain (avoiding the need for CORS headers) and the capability of caching static files at edge locations for lower latency.
+
+Therefore, this demo uses Amazon CloudFront (with Amazon S3) as static website hosting.
 
 ## 4.4 Map service
 
@@ -169,6 +188,6 @@ A common tool is [Google Maps JavaScript API](https://developers.google.com/maps
 
 At re:Invent 2020, AWS announced [Amazon Location Service](https://aws.amazon.com/location/). The service is currently in preview, but is a perfect match for our use case. It is missing CloudFormation support (see 2.3), but when this support is added we can update our demo.
 
-Note that Amazon Location [supports](https://docs.aws.amazon.com/location/latest/developerguide/tutorial-mapbox-gl-js.html#tutorial-mapbox-js-add-dependencies) open source versions of Mapbox GL JS (v1.13.0 or earlier). Starting from [v2.0.0](https://github.com/mapbox/mapbox-gl-js/releases/tag/v2.0.0) Mapbox GL JS is no longer open source.
+Note that Amazon Location [supports](https://docs.aws.amazon.com/location/latest/developerguide/tutorial-mapbox-gl-js.html#tutorial-mapbox-js-add-dependencies) open source versions of Mapbox GL JS (v1.13.0 or earlier). Starting from [v2.0.0](https://github.com/mapbox/mapbox-gl-js/releases/tag/v2.0.0) Mapbox GL JS is no longer open source. The alternative is [Tangram](https://tangrams.readthedocs.io/en/master/).
 
-Therefore this demo uses [Tangram](https://tangrams.readthedocs.io/en/master/) instead.
+Therefore, this demo uses Amazon Location Service with Tangram.
