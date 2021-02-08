@@ -3,9 +3,10 @@ from socket import socket
 from sys import exit
 from json import dumps as json_encode
 from boto3 import resource
-from os import environ
+from botocore.exceptions import EndpointConnectionError
+from os import environ, system, name
 from uuid import uuid4
-from time import sleep
+from time import strftime, sleep
 
 # Settings of dump1090
 TCP_IP = 'localhost'
@@ -55,6 +56,7 @@ def is_valid(record):
         len(record.keys()) > 3
 
 
+# Prepares the message to be send to SQS
 def convert_to_sqs_entry(record):
      return {
         'Id': str(uuid4()),
@@ -62,20 +64,18 @@ def convert_to_sqs_entry(record):
      }
 
 
-# Connection to the socket
-dump1090 = socket()
-try:
-    dump1090.connect((TCP_IP, TCP_PORT))
-    print('Successfully connected to dump1090')
-except:
-    print('Failed to connect to dump1090')
-    exit()
+# Writes to the screen
+def log(message, override=True):
+    # After each message return to the start of the line again, so the log won't build up over time
+    # The longest message is 34 character, so pad all other messages
+    print(' [{}] - {:34}'.format(strftime('%Y-%m-%d %H:%M:%S'), message), end='\r' if override else '\n')
 
-# SQS client
-queue = resource('sqs').Queue(QUEUE_URL)
 
-# Continous loop
-while True:
+# Receive messages from dump1090 socket
+def receive_messages(dump1090):
+    # Wait for new messags to become available on the socket
+    sleep(RECIEVE_INTERVAL)
+
     # Receive raw bytes
     buffer = dump1090.recv(BUFFER_SIZE)
 
@@ -83,16 +83,19 @@ while True:
     lines = buffer.decode(CHARACTER_ENCODING).strip(LINE_DELIMETER).split(LINE_DELIMETER)
 
     # Transform comma seperated lines into list of JSON objects
-    records = [
+    return [
         convert_to_json(line)
         for line in lines
     ]
 
+
+# Process and send messages to SQS
+def send_messages(queue, messages):
     # Filter out message without any additional information (other than ICAO address)
     entries = [
-        convert_to_sqs_entry(record)
-        for record in records
-        if is_valid(record)
+        convert_to_sqs_entry(message)
+        for message in messages
+        if is_valid(message)
     ]
 
     # Create batches of 10 messages
@@ -102,10 +105,38 @@ while True:
     ]
 
     # Send to SQS
-    for batch in batches:
-        queue.send_messages(
-            Entries=batch,
-        )
+    try:
+        for batch in batches:
+            queue.send_messages(
+                Entries=batch,
+            )
+        log('Sent {} messages'.format(len(entries)))
 
-    # Wait for new messags to become available on the socket
-    sleep(RECIEVE_INTERVAL)
+    except EndpointConnectionError:
+        log('No internet connection')
+
+
+# Only run when the script is invoked directly
+if __name__ == '__main__':
+    # Connection to the socket
+    dump1090 = socket()
+    try:
+        dump1090.connect((TCP_IP, TCP_PORT))
+        log('Successfully connected to dump1090')
+    except:
+        log('Failed to connect to dump1090', override=False)
+        exit()
+
+    # SQS client
+    queue = resource('sqs').Queue(QUEUE_URL)
+
+    # Continous loop
+    try:
+        while True:
+            messages = receive_messages(dump1090)
+            send_messages(queue, messages)
+
+    # Graceful exit
+    except KeyboardInterrupt:
+        log('Shutting down', override=False)
+        exit()
