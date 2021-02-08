@@ -1,12 +1,16 @@
 #!/usr/bin/env python3
+from os import environ
 from aws_cdk import (
     core,
+    aws_certificatemanager as acm,
     aws_apigateway as apigateway,
     aws_cloudfront as cloudfront,
     aws_dynamodb as dynamodb,
     aws_iam as iam,
     aws_lambda as lambda_,
     aws_lambda_event_sources as lambda_event_sources,
+    aws_route53 as route53,
+    aws_route53_targets as route53_targets,
     aws_sqs as sqs,
     aws_s3 as s3,
     aws_s3_deployment as s3_deployment,
@@ -194,14 +198,51 @@ class DemoStack(core.Stack):
             ]
         )
 
-        cloudfront.CloudFrontWebDistribution(
+        domain_name = self.node.try_get_context('domain_name')
+
+        # If domain name is specified, create a certificate and alias configuration for CloudFront
+        if domain_name is None:
+            alias_configuration = None
+        else:
+            subdomain = 'aircraft.{}'.format(domain_name)
+
+            zone = route53.HostedZone.from_lookup(
+                self, 'Zone',
+                domain_name=domain_name,
+            )
+
+            certificate = acm.DnsValidatedCertificate(
+                self, 'Certificate',
+                domain_name=subdomain,
+                hosted_zone=zone,
+                region='us-east-1',
+            )
+
+            alias_configuration = cloudfront.AliasConfiguration(
+                acm_cert_ref=certificate.certificate_arn,
+                names=[subdomain],
+            )
+
+        distribution = cloudfront.CloudFrontWebDistribution(
             self, 'CDN',
             price_class=cloudfront.PriceClass.PRICE_CLASS_ALL,
+            alias_configuration=alias_configuration,
             origin_configs=[
                 s3_origin,
                 api_origin,
             ],
         )
+
+        # If domain name is specified, create a DNS record for CloudFront
+        if domain_name is not None:
+            route53.ARecord(
+                self, 'DnsRecord',
+                record_name=subdomain,
+                target=route53.AddressRecordTarget.from_alias(
+                    alias_target=route53_targets.CloudFrontTarget(distribution)
+                ),
+                zone=zone,
+            )
 
         # Outputs that are needed on the Raspberry Pi
         core.CfnOutput(
@@ -226,7 +267,8 @@ app = core.App()
 stack = DemoStack(
     app, 'AircraftData',
     env=core.Environment(
-        region='eu-west-1',
+        account=environ['CDK_DEFAULT_ACCOUNT'],
+        region=environ['CDK_DEFAULT_REGION'],
     )
 )
 app.synth()

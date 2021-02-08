@@ -66,7 +66,7 @@
   function loadMarkers() {
     $.ajax({
       dataType: "json",
-      url: "https://d2590et6sh3gqo.cloudfront.net/aircraft/",
+      url: "aircraft/",
       success: function(aircrafts) {
         const currentAircrafts = []
 

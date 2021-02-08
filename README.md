@@ -74,9 +74,13 @@ Note replace with your own account id.
 ```sh
 sudo npm install -g aws-cdk --update
 python3 -m pip install -r cdk/requirements.txt
+export CDK_DEFAULT_ACCOUNT=418155680583
+export CDK_DEFAULT_REGION=eu-west-1
 cdk bootstrap aws://418155680583/eu-west-1
 cdk deploy
 ```
+
+Optionally you can use `cdk deploy --context domain_name=demo.training` to add your custom domain name.
 
 ### 2.2 Configuring Raspberry Pi
 
