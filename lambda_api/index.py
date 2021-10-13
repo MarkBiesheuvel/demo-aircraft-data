@@ -48,7 +48,7 @@ INNER JOIN latitude_view ON longitude_view.IcaoAddress = latitude_view.IcaoAddre
 INNER JOIN heading_view ON longitude_view.IcaoAddress = heading_view.IcaoAddress
 '''
 
-timestream = client('timestream-query', region_name='eu-west-1')
+timestream = client('timestream-query')
 
 
 def process_row(row):
