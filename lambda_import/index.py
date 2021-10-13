@@ -6,7 +6,7 @@ from json import loads as json_decode, dumps as json_encode
 
 # Time format used in ADS-B
 TIME_FORMAT = '%Y/%m/%d %H:%M:%S.%f %z'
-CURRENT_UTC_OFFSET = '+0100'
+CURRENT_UTC_OFFSET = '+0200'
 
 # Attributes that stay constant
 DIMENSION_ATTRIBUTES = [
@@ -98,5 +98,5 @@ def handler(event, context):
                 Records=records,
             )
         except timestream.exceptions.RejectedRecordsException as exception:
-            for record in exception['RejectedRecords']:
+            for record in exception.response['RejectedRecords']:
                 print(record['Reason'])
